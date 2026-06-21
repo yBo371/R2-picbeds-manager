@@ -16,7 +16,6 @@ interface ListItem {
   uploaded: string | null;
   imageUrl: string;
   downloadUrl: string;
-  deleteUrl: string;
   markdown: string;
 }
 
@@ -43,7 +42,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const encodedKey = encodeKeyPath(object.key);
       const imageUrl = `/image/${encodedKey}`;
       const downloadUrl = `/download/${encodedKey}`;
-      const deleteUrl = `/delete/${encodedKey}`;
       const absoluteImageUrl = `${baseUrl}/image/${encodedKey}`;
 
       return {
@@ -53,7 +51,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         uploaded: object.uploaded ? object.uploaded.toISOString() : null,
         imageUrl,
         downloadUrl,
-        deleteUrl,
         markdown: `![](${absoluteImageUrl})`
       };
     });

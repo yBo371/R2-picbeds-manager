@@ -7,7 +7,6 @@ interface ImageItem {
   uploaded: string | null;
   imageUrl: string;
   downloadUrl: string;
-  deleteUrl?: string;
   markdown: string;
 }
 
@@ -82,13 +81,6 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
-function encodeKeyPath(key: string): string {
-  return key
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-}
-
 function showNotice(message: string, type: NoticeType = 'info', autoHide = type === 'success'): void {
   window.clearTimeout(noticeTimer);
   notice.textContent = message;
@@ -136,30 +128,6 @@ async function copyMarkdown(markdown: string): Promise<void> {
     showNotice('Markdown 图片链接已复制。', 'success');
   } catch {
     showNotice('复制失败。请确认浏览器允许剪贴板权限，或手动复制链接。', 'error');
-  }
-}
-
-async function deleteImage(item: ImageItem): Promise<void> {
-  const confirmed = window.confirm(`确定要删除 "${item.name}" 吗？这个操作会删除 R2 原始文件。`);
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-    const response = await fetch(item.deleteUrl ?? `/delete/${encodeKeyPath(item.key)}`, { method: 'DELETE' });
-    const data = (await response.json().catch(() => ({}))) as { error?: string };
-
-    if (!response.ok) {
-      throw new Error(data.error ?? `删除失败：${response.status}`);
-    }
-
-    loadedItems = loadedItems.filter((loadedItem) => loadedItem.key !== item.key);
-    showNotice('图片已删除。', 'success');
-    render();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '未知错误';
-    showNotice(`删除失败：${message}`, 'error');
   }
 }
 
@@ -241,14 +209,7 @@ function createCard(item: ImageItem): HTMLElement {
   copyButton.title = '复制 Markdown 图片链接';
   copyButton.addEventListener('click', () => void copyMarkdown(item.markdown));
 
-  const deleteButton = document.createElement('button');
-  deleteButton.className = 'danger-button';
-  deleteButton.type = 'button';
-  deleteButton.textContent = '删除';
-  deleteButton.title = '删除 R2 原图';
-  deleteButton.addEventListener('click', () => void deleteImage(item));
-
-  actions.append(downloadLink, copyButton, deleteButton);
+  actions.append(downloadLink, copyButton);
   body.append(title, keyLine, meta, actions);
   card.append(previewButton, body);
 

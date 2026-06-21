@@ -11,8 +11,6 @@
 │   │   └── list.ts
 │   ├── download/
 │   │   └── [[key]].ts
-│   ├── delete/
-│   │   └── [[key]].ts
 │   ├── image/
 │   │   └── [[key]].ts
 │   └── types.ts
@@ -38,7 +36,6 @@
 - 支持加载骨架屏、空状态和清晰错误提示
 - 点击图片打开大图预览弹窗
 - 下载按钮使用 `/download/<key>` 下载 R2 原始文件
-- 删除按钮使用 `DELETE /delete/<key>` 删除 R2 原始文件
 - 复制 Markdown 格式：`![](https://你的域名/image/文件路径)`
 - 图片预览地址：`/image/<key>`
 - 列表接口：`/api/list?prefix=xxx&cursor=xxx`
@@ -113,7 +110,6 @@ PUBLIC_BASE_URL=https://img.example.com
       "uploaded": "2026-06-21T08:00:00.000Z",
       "imageUrl": "/image/images/demo.png",
       "downloadUrl": "/download/images/demo.png",
-      "deleteUrl": "/delete/images/demo.png",
       "markdown": "![](https://img.example.com/image/images/demo.png)"
     }
   ],
@@ -136,10 +132,6 @@ Content-Disposition: attachment
 
 浏览器会下载 R2 中的原始文件，而不是下载网页缩略图。
 
-### `DELETE /delete/<key>`
-
-删除 R2 中对应 key 的原始文件。前端会先弹出浏览器确认框，确认后才会发送删除请求。
-
 ## 中文、空格和特殊字符 key
 
 前端和接口会按路径片段编码 key，例如：
@@ -155,7 +147,6 @@ Pages Functions 收到请求后会 decode，再用原始 key 调用 `BUCKET.get(
 - 项目不需要、也不会内置 R2 Access Key 或 Secret Key。
 - 前端和 Pages Functions 只通过 Cloudflare R2 binding `BUCKET` 读取 R2。
 - 项目不提供上传接口。图片上传由 PicGo 完成。
-- 项目提供删除接口，请确认这个 Pages 项目已经用 Cloudflare Access 或其他方式限制访问。
 - 默认建议把这个 Pages 项目当作私人图片管理器使用。
 - 建议使用 Cloudflare Access 保护整个 Pages 项目。
 - 如果公开访问，`/api/list` 会暴露 R2 图片列表，`/image/<key>` 和 `/download/<key>` 也会公开可访问。

@@ -334,14 +334,13 @@ button:disabled {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 2px;
 }
 
 .primary-button,
 .secondary-button,
-.danger-button,
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -370,8 +369,7 @@ button:disabled {
   border-color: #1d4ed8;
 }
 
-.secondary-button,
-.danger-button {
+.secondary-button {
   min-width: 0;
   padding: 0 10px;
   overflow: hidden;
@@ -392,18 +390,6 @@ button:disabled {
   background: #eff6ff;
   border-color: #bfdbfe;
   color: #1d4ed8;
-}
-
-.danger-button {
-  color: #991b1b;
-  background: #fff7f7;
-  border: 1px solid #fecaca;
-}
-
-.danger-button:hover {
-  color: #ffffff;
-  background: #dc2626;
-  border-color: #dc2626;
 }
 
 .icon-button {

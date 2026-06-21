@@ -21,7 +21,6 @@ export interface R2Objects {
 export interface R2Bucket {
   list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<R2Objects>;
   get(key: string): Promise<R2ObjectBody | null>;
-  delete(key: string): Promise<void>;
 }
 
 export interface EventContext<Env> {

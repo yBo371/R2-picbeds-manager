@@ -10,4 +10,4 @@ bucket_name = "picbeds"
 
 [vars]
 # 可选。用于生成 Markdown 链接；不配置时会自动使用当前访问域名。
-PUBLIC_BASE_URL = "https://img.example.com"
+PUBLIC_BASE_URL = "https://image.intersection.top"
