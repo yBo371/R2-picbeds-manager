@@ -89,6 +89,13 @@ button:disabled {
   font-size: 15px;
 }
 
+.topbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 1.4fr);
@@ -456,13 +463,8 @@ button:disabled {
   color: #1d4ed8;
 }
 
-.nav-controls .secondary-button,
 .nav-controls .icon-button {
   min-height: 42px;
-}
-
-.nav-text-button {
-  min-width: 92px;
 }
 
 .load-more-wrap {
@@ -596,10 +598,6 @@ button:disabled {
 
   .nav-controls {
     width: 100%;
-  }
-
-  .nav-controls .nav-text-button {
-    flex: 1 1 auto;
   }
 
   .image-grid {

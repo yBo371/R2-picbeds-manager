@@ -57,6 +57,7 @@ function getElement<T extends Element>(selector: string): T {
 }
 
 const searchInput = getElement<HTMLInputElement>('#searchInput');
+const rootButton = getElement<HTMLButtonElement>('#rootButton');
 const allFilesButton = getElement<HTMLButtonElement>('#allFilesButton');
 const backButton = getElement<HTMLButtonElement>('#backButton');
 const forwardButton = getElement<HTMLButtonElement>('#forwardButton');
@@ -394,6 +395,7 @@ function render(): void {
   loadMoreButton.disabled = isLoading;
   loadMoreButton.textContent = isLoading ? '加载中...' : '加载更多';
   refreshButton.disabled = isLoading;
+  rootButton.disabled = isLoading || (!isAllFilesView && currentPrefix === '');
   allFilesButton.disabled = isLoading || isAllFilesView;
   backButton.disabled = isLoading || backStack.length === 0;
   forwardButton.disabled = isLoading || forwardStack.length === 0;
@@ -582,6 +584,7 @@ function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160
   }) as T;
 }
 
+rootButton.addEventListener('click', () => navigateToPrefix(''));
 allFilesButton.addEventListener('click', () => navigateToPrefix('', true));
 backButton.addEventListener('click', navigateBack);
 forwardButton.addEventListener('click', navigateForward);

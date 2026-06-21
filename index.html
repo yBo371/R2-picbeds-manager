@@ -15,7 +15,10 @@
             <p>轻量浏览、预览、下载和管理 PicGo 上传的图片</p>
           </div>
         </div>
-        <button id="refreshButton" class="icon-button" type="button" title="刷新列表" aria-label="刷新列表">↻</button>
+        <div class="topbar-actions">
+          <button id="allFilesButton" class="icon-button" type="button" title="全部文件" aria-label="全部文件">▦</button>
+          <button id="refreshButton" class="icon-button" type="button" title="刷新列表" aria-label="刷新列表">↻</button>
+        </div>
       </header>
 
       <main>
@@ -37,9 +40,7 @@
         <section class="toolbar" aria-label="筛选工具">
           <div class="filter-row">
             <div class="nav-controls" aria-label="目录导航">
-              <button id="allFilesButton" class="secondary-button nav-text-button" type="button" title="显示所有文件">
-                全部文件
-              </button>
+              <button id="rootButton" class="icon-button" type="button" title="根目录" aria-label="根目录">⌂</button>
               <button id="backButton" class="icon-button" type="button" title="后退" aria-label="后退">←</button>
               <button id="forwardButton" class="icon-button" type="button" title="前进" aria-label="前进">→</button>
             </div>
