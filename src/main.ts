@@ -1,6 +1,6 @@
 import './style.css';
 
-type SortBy = 'uploaded' | 'size' | 'name' | 'contentType' | 'extension';
+type SortBy = 'uploaded' | 'size' | 'name';
 type SortOrder = 'asc' | 'desc';
 
 interface PrefixItem {
@@ -52,7 +52,8 @@ function getElement<T extends Element>(selector: string): T {
 }
 
 const searchInput = getElement<HTMLInputElement>('#searchInput');
-const sortSelect = getElement<HTMLSelectElement>('#sortSelect');
+const sortBySelect = getElement<HTMLSelectElement>('#sortBySelect');
+const sortOrderSelect = getElement<HTMLSelectElement>('#sortOrderSelect');
 const refreshButton = getElement<HTMLButtonElement>('#refreshButton');
 const rootButton = getElement<HTMLButtonElement>('#rootButton');
 const parentButton = getElement<HTMLButtonElement>('#parentButton');
@@ -150,11 +151,9 @@ function getCurrentPrefixLabel(): string {
 }
 
 function getSortState(): { sortBy: SortBy; sortOrder: SortOrder } {
-  const [sortByValue, sortOrderValue] = sortSelect.value.split(':');
-  const sortBy: SortBy =
-    sortByValue === 'size' || sortByValue === 'name' || sortByValue === 'contentType' || sortByValue === 'extension'
-      ? sortByValue
-      : 'uploaded';
+  const sortByValue = sortBySelect.value;
+  const sortOrderValue = sortOrderSelect.value;
+  const sortBy: SortBy = sortByValue === 'size' || sortByValue === 'name' ? sortByValue : 'uploaded';
   const sortOrder: SortOrder = sortOrderValue === 'asc' ? 'asc' : 'desc';
 
   return { sortBy, sortOrder };
@@ -299,13 +298,13 @@ function createCard(item: ImageItem): HTMLElement {
   const downloadLink = document.createElement('a');
   downloadLink.className = 'secondary-button';
   downloadLink.href = item.downloadUrl;
-  downloadLink.textContent = '下载原图';
+  downloadLink.textContent = '下载';
   downloadLink.title = '下载 R2 原图';
 
   const copyButton = document.createElement('button');
   copyButton.className = 'secondary-button';
   copyButton.type = 'button';
-  copyButton.textContent = '复制 Markdown';
+  copyButton.textContent = '复制';
   copyButton.title = '复制 Markdown 图片链接';
   copyButton.addEventListener('click', () => void copyMarkdown(item.markdown));
 
@@ -349,7 +348,8 @@ function render(): void {
   loadMoreButton.disabled = isLoading;
   loadMoreButton.textContent = isLoading ? '加载中...' : '加载更多';
   refreshButton.disabled = isLoading;
-  sortSelect.disabled = isLoading;
+  sortBySelect.disabled = isLoading;
+  sortOrderSelect.disabled = isLoading;
 
   if (isLoading && loadedItems.length === 0) {
     grid.replaceChildren(...createSkeletonCards());
@@ -481,7 +481,8 @@ parentButton.addEventListener('click', () => {
   navigateToPrefix(parentPrefix ?? '');
 });
 
-sortSelect.addEventListener('change', () => void loadImages(true));
+sortBySelect.addEventListener('change', () => void loadImages(true));
+sortOrderSelect.addEventListener('change', () => void loadImages(true));
 searchInput.addEventListener('input', debounce(render));
 refreshButton.addEventListener('click', () => void loadImages(true));
 loadMoreButton.addEventListener('click', () => void loadImages(false));

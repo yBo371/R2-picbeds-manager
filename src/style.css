@@ -123,8 +123,8 @@ button:disabled {
 
 .toolbar {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: 16px;
+  padding: 16px;
   margin-bottom: 16px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -137,6 +137,8 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .current-path {
@@ -171,7 +173,9 @@ button:disabled {
 
 .directory-row {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .prefix-list {
@@ -189,8 +193,15 @@ button:disabled {
 
 .filter-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 280px);
+  grid-template-columns: minmax(240px, 1fr) minmax(320px, 430px);
   gap: 14px;
+  align-items: end;
+}
+
+.sort-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 120px);
+  gap: 10px;
   align-items: end;
 }
 
@@ -442,6 +453,10 @@ button:disabled {
   white-space: nowrap;
 }
 
+.directory-button {
+  max-width: 220px;
+}
+
 .secondary-button,
 .directory-button {
   color: #1e293b;
@@ -612,12 +627,22 @@ button:disabled {
     width: 100%;
   }
 
+  .sort-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 120px);
+  }
+
   .image-grid {
     grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
     gap: 12px;
   }
 
   .actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .sort-fields {
     grid-template-columns: 1fr;
   }
 }

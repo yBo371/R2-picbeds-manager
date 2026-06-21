@@ -135,7 +135,7 @@ function createListItem(object: R2Object, baseUrl: string): ListItem {
   const encodedKey = encodeKeyPath(object.key);
   const imageUrl = `/image/${encodedKey}`;
   const downloadUrl = `/download/${encodedKey}`;
-  const absoluteImageUrl = `${baseUrl}/image/${encodedKey}`;
+  const markdownImageUrl = `${baseUrl}/${encodedKey}`;
   const size = Number.isFinite(object.size) ? object.size : 0;
   const uploaded = object.uploaded && !Number.isNaN(object.uploaded.getTime()) ? object.uploaded.toISOString() : null;
   const contentType = getContentType(object.key, object);
@@ -153,7 +153,7 @@ function createListItem(object: R2Object, baseUrl: string): ListItem {
     etag: object.httpEtag ?? object.etag ?? null,
     imageUrl,
     downloadUrl,
-    markdown: `![](${absoluteImageUrl})`
+    markdown: `![](${markdownImageUrl})`
   };
 }
 

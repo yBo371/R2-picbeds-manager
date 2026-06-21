@@ -30,13 +30,13 @@
 - 首页网格展示 R2 图片列表
 - 支持 `jpg`、`jpeg`、`png`、`webp`、`gif`、`avif`、`svg`
 - 支持按 prefix 浏览，并自动检测当前目录下的子目录
-- 支持按创建时间、文件大小、文件名、文件类型排序，默认按 R2 上传时间从近到远
+- 支持按名称、文件大小、创建时间排序，可选择递增或递减，默认按 R2 上传时间递减
 - 支持搜索当前已加载列表里的文件名或 key
 - 页面显示当前已加载数量、可见文件大小合计和当前位置
 - 支持加载骨架屏、空状态和清晰错误提示
 - 点击图片打开大图预览弹窗
 - 下载按钮使用 `/download/<key>` 下载 R2 原始文件
-- 复制 Markdown 格式：`![](https://你的域名/image/文件路径)`
+- 复制 Markdown 格式：`![](https://你的域名/文件路径)`
 - 图片预览地址：`/image/<key>`
 - 列表接口：`/api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc`
 - 图片卡片显示文件名、文件大小、创建时间和文件类型
@@ -93,7 +93,7 @@ R2 bucket: 你的 bucket
 PUBLIC_BASE_URL=https://img.example.com
 ```
 
-`PUBLIC_BASE_URL` 用于生成复制出来的 Markdown 图片链接。如果不配置，接口会自动使用当前访问域名。
+`PUBLIC_BASE_URL` 用于生成复制出来的 Markdown 图片链接。Markdown 链接会使用 `PUBLIC_BASE_URL + 对象 key`，不会额外添加 `/image/` 路径。如果不配置，接口会自动使用当前访问域名。
 
 ## API 说明
 
@@ -101,15 +101,16 @@ PUBLIC_BASE_URL=https://img.example.com
 
 返回当前 prefix 下一级子目录和图片对象列表。R2 没有真实文件夹，接口使用 `prefix` + `delimiter: "/"` 根据对象 key 自动分组目录。
 
-支持的排序参数：
+支持的排序字段：
 
-- `sortBy=uploaded&sortOrder=desc`：创建时间从近到远，默认值
-- `sortBy=uploaded&sortOrder=asc`：创建时间从远到近
-- `sortBy=size&sortOrder=desc`：文件大小从大到小
-- `sortBy=size&sortOrder=asc`：文件大小从小到大
-- `sortBy=name&sortOrder=asc`：文件名 A-Z
-- `sortBy=name&sortOrder=desc`：文件名 Z-A
-- `sortBy=contentType&sortOrder=asc`：文件类型 A-Z
+- `sortBy=name`：名称
+- `sortBy=size`：文件大小
+- `sortBy=uploaded`：创建时间，默认值
+
+支持的排序方式：
+
+- `sortOrder=asc`：递增
+- `sortOrder=desc`：递减，默认值
 
 为了让默认排序尽量准确，接口会循环读取当前 prefix 下的 R2 list 分页结果，最多排序前 5000 个图片对象。超过上限时响应里的 `limited` 会是 `true`，并返回 `limitMessage`。
 
@@ -137,7 +138,7 @@ PUBLIC_BASE_URL=https://img.example.com
       "extension": "png",
       "imageUrl": "/image/images/demo.png",
       "downloadUrl": "/download/images/demo.png",
-      "markdown": "![](https://img.example.com/image/images/demo.png)"
+      "markdown": "![](https://img.example.com/images/demo.png)"
     }
   ],
   "sortBy": "uploaded",
