@@ -35,19 +35,40 @@
         </section>
 
         <section class="toolbar" aria-label="筛选工具">
-          <label class="field">
-            <span>目录</span>
-            <select id="prefixSelect">
-              <option value="">根目录</option>
-              <option value="images/">images/</option>
-              <option value="posts/">posts/</option>
-              <option value="wallpapers/">wallpapers/</option>
-            </select>
-          </label>
-          <label class="field grow">
-            <span>搜索已加载文件</span>
-            <input id="searchInput" type="search" placeholder="输入文件名" autocomplete="off" />
-          </label>
+          <div class="path-row">
+            <div class="current-path">
+              <span>当前路径</span>
+              <strong id="currentPath">根目录</strong>
+            </div>
+            <div class="path-actions">
+              <button id="rootButton" class="secondary-button" type="button">根目录</button>
+              <button id="parentButton" class="secondary-button" type="button">返回上一级</button>
+            </div>
+          </div>
+
+          <div class="directory-row">
+            <span>子目录</span>
+            <div id="prefixList" class="prefix-list" aria-label="子目录列表"></div>
+          </div>
+
+          <div class="filter-row">
+            <label class="field grow">
+              <span>搜索已加载文件</span>
+              <input id="searchInput" type="search" placeholder="输入文件名" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>排序</span>
+              <select id="sortSelect">
+                <option value="uploaded:desc">创建时间：从近到远</option>
+                <option value="uploaded:asc">创建时间：从远到近</option>
+                <option value="size:desc">文件大小：从大到小</option>
+                <option value="size:asc">文件大小：从小到大</option>
+                <option value="name:asc">文件名：A-Z</option>
+                <option value="name:desc">文件名：Z-A</option>
+                <option value="contentType:asc">文件类型：A-Z</option>
+              </select>
+            </label>
+          </div>
         </section>
 
         <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>

@@ -29,8 +29,8 @@
 
 - 首页网格展示 R2 图片列表
 - 支持 `jpg`、`jpeg`、`png`、`webp`、`gif`、`avif`、`svg`
-- 支持按 prefix 浏览：根目录、`images/`、`posts/`、`wallpapers/`
-- 支持 R2 list cursor 分页，并提供“加载更多”按钮
+- 支持按 prefix 浏览，并自动检测当前目录下的子目录
+- 支持按创建时间、文件大小、文件名、文件类型排序，默认按 R2 上传时间从近到远
 - 支持搜索当前已加载列表里的文件名或 key
 - 页面显示当前已加载数量、可见文件大小合计和当前位置
 - 支持加载骨架屏、空状态和清晰错误提示
@@ -38,7 +38,8 @@
 - 下载按钮使用 `/download/<key>` 下载 R2 原始文件
 - 复制 Markdown 格式：`![](https://你的域名/image/文件路径)`
 - 图片预览地址：`/image/<key>`
-- 列表接口：`/api/list?prefix=xxx&cursor=xxx`
+- 列表接口：`/api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc`
+- 图片卡片显示文件名、文件大小、创建时间和文件类型
 
 ## 安装与本地运行
 
@@ -96,27 +97,62 @@ PUBLIC_BASE_URL=https://img.example.com
 
 ## API 说明
 
-### `GET /api/list?prefix=xxx&cursor=xxx`
+### `GET /api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc`
 
-返回当前 prefix 下的图片对象列表。响应示例：
+返回当前 prefix 下一级子目录和图片对象列表。R2 没有真实文件夹，接口使用 `prefix` + `delimiter: "/"` 根据对象 key 自动分组目录。
+
+支持的排序参数：
+
+- `sortBy=uploaded&sortOrder=desc`：创建时间从近到远，默认值
+- `sortBy=uploaded&sortOrder=asc`：创建时间从远到近
+- `sortBy=size&sortOrder=desc`：文件大小从大到小
+- `sortBy=size&sortOrder=asc`：文件大小从小到大
+- `sortBy=name&sortOrder=asc`：文件名 A-Z
+- `sortBy=name&sortOrder=desc`：文件名 Z-A
+- `sortBy=contentType&sortOrder=asc`：文件类型 A-Z
+
+为了让默认排序尽量准确，接口会循环读取当前 prefix 下的 R2 list 分页结果，最多排序前 5000 个图片对象。超过上限时响应里的 `limited` 会是 `true`，并返回 `limitMessage`。
+
+响应示例：
 
 ```json
 {
+  "prefix": "",
+  "parentPrefix": null,
+  "prefixes": [
+    {
+      "name": "images",
+      "prefix": "images/"
+    }
+  ],
   "items": [
     {
       "key": "images/demo.png",
       "name": "demo.png",
       "size": 123456,
+      "sizeText": "120.56 KB",
       "uploaded": "2026-06-21T08:00:00.000Z",
+      "uploadedText": "2026-06-21 16:00",
+      "contentType": "image/png",
+      "extension": "png",
       "imageUrl": "/image/images/demo.png",
       "downloadUrl": "/download/images/demo.png",
       "markdown": "![](https://img.example.com/image/images/demo.png)"
     }
   ],
+  "sortBy": "uploaded",
+  "sortOrder": "desc",
+  "count": 1,
+  "totalSize": 123456,
+  "totalSizeText": "120.56 KB",
+  "limited": false,
+  "limitMessage": null,
   "cursor": null,
   "truncated": false
 }
 ```
+
+`uploaded` 来自 R2 object metadata 的 `object.uploaded`，也就是对象上传到 R2 的时间，不是图片 EXIF 拍摄时间。`size` 来自 R2 object metadata 的对象字节数。接口会把 `uploaded` 转成 ISO 字符串再返回，前端再按浏览器本地时区显示为 `YYYY-MM-DD HH:mm`。
 
 ### `GET /image/<key>`
 

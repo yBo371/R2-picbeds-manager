@@ -1,19 +1,41 @@
 import './style.css';
 
+type SortBy = 'uploaded' | 'size' | 'name' | 'contentType' | 'extension';
+type SortOrder = 'asc' | 'desc';
+
+interface PrefixItem {
+  name: string;
+  prefix: string;
+}
+
 interface ImageItem {
   key: string;
   name: string;
   size: number;
+  sizeText: string;
   uploaded: string | null;
+  uploadedText: string;
+  contentType: string;
+  extension: string;
   imageUrl: string;
   downloadUrl: string;
   markdown: string;
 }
 
 interface ListResponse {
+  prefix: string;
+  parentPrefix: string | null;
+  prefixes: PrefixItem[];
   items: ImageItem[];
-  cursor: string | null;
-  truncated: boolean;
+  sortBy: SortBy;
+  sortOrder: SortOrder;
+  count: number;
+  totalSize: number;
+  totalSizeText: string;
+  limited: boolean;
+  limitMessage: string | null;
+  cursor?: string | null;
+  truncated?: boolean;
   error?: string;
 }
 
@@ -29,9 +51,13 @@ function getElement<T extends Element>(selector: string): T {
   return element;
 }
 
-const prefixSelect = getElement<HTMLSelectElement>('#prefixSelect');
 const searchInput = getElement<HTMLInputElement>('#searchInput');
+const sortSelect = getElement<HTMLSelectElement>('#sortSelect');
 const refreshButton = getElement<HTMLButtonElement>('#refreshButton');
+const rootButton = getElement<HTMLButtonElement>('#rootButton');
+const parentButton = getElement<HTMLButtonElement>('#parentButton');
+const prefixList = getElement<HTMLDivElement>('#prefixList');
+const currentPath = getElement<HTMLElement>('#currentPath');
 const loadMoreButton = getElement<HTMLButtonElement>('#loadMoreButton');
 const grid = getElement<HTMLDivElement>('#grid');
 const notice = getElement<HTMLDivElement>('#notice');
@@ -44,41 +70,61 @@ const totalSize = getElement<HTMLElement>('#totalSize');
 const prefixBadge = getElement<HTMLElement>('#prefixBadge');
 
 let loadedItems: ImageItem[] = [];
+let currentPrefixes: PrefixItem[] = [];
+let currentPrefix = '';
+let parentPrefix: string | null = null;
 let nextCursor: string | null = null;
 let isLoading = false;
 let currentAbortController: AbortController | null = null;
 let noticeTimer: number | undefined;
 
-function formatBytes(bytes: number): string {
+function normalizePrefix(prefix: string): string {
+  const cleanPrefix = prefix.trim().replace(/^\/+/, '');
+
+  if (!cleanPrefix) {
+    return '';
+  }
+
+  return cleanPrefix.endsWith('/') ? cleanPrefix : `${cleanPrefix}/`;
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) {
+    return '未知大小';
+  }
+
   if (bytes === 0) {
     return '0 B';
   }
 
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const units = ['B', 'KB', 'MB', 'GB'];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** index;
 
-  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+  if (index === 0) {
+    return `${Math.round(value)} ${units[index]}`;
+  }
+
+  return `${value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} ${units[index]}`;
 }
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null, fallback = '未知时间'): string {
   if (!value) {
-    return '未知时间';
+    return fallback || '未知时间';
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return fallback || '未知时间';
   }
 
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
+  const pad = (part: number) => part.toString().padStart(2, '0');
+
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  ].join(' ');
 }
 
 function showNotice(message: string, type: NoticeType = 'info', autoHide = type === 'success'): void {
@@ -100,7 +146,18 @@ function hideNotice(): void {
 }
 
 function getCurrentPrefixLabel(): string {
-  return prefixSelect.value || '根目录';
+  return currentPrefix || '根目录';
+}
+
+function getSortState(): { sortBy: SortBy; sortOrder: SortOrder } {
+  const [sortByValue, sortOrderValue] = sortSelect.value.split(':');
+  const sortBy: SortBy =
+    sortByValue === 'size' || sortByValue === 'name' || sortByValue === 'contentType' || sortByValue === 'extension'
+      ? sortByValue
+      : 'uploaded';
+  const sortOrder: SortOrder = sortOrderValue === 'asc' ? 'asc' : 'desc';
+
+  return { sortBy, sortOrder };
 }
 
 function getFilteredItems(): ImageItem[] {
@@ -113,13 +170,52 @@ function getFilteredItems(): ImageItem[] {
   return loadedItems.filter((item) => item.name.toLowerCase().includes(keyword) || item.key.toLowerCase().includes(keyword));
 }
 
+function getSizeText(item: ImageItem): string {
+  return item.sizeText || formatBytes(item.size);
+}
+
+function getUploadedText(item: ImageItem): string {
+  return formatDate(item.uploaded, item.uploadedText);
+}
+
 function updateStats(): void {
   const visibleItems = getFilteredItems();
-  const visibleSize = visibleItems.reduce((sum, item) => sum + item.size, 0);
+  const visibleSize = visibleItems.reduce((sum, item) => sum + (Number.isFinite(item.size) ? item.size : 0), 0);
+  const prefixLabel = getCurrentPrefixLabel();
 
   itemCount.textContent = `${visibleItems.length}`;
   totalSize.textContent = formatBytes(visibleSize);
-  prefixBadge.textContent = getCurrentPrefixLabel();
+  prefixBadge.textContent = prefixLabel;
+  currentPath.textContent = prefixLabel;
+}
+
+function renderDirectoryButtons(): void {
+  if (currentPrefixes.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'prefix-empty';
+    empty.textContent = '无子目录';
+    prefixList.replaceChildren(empty);
+    return;
+  }
+
+  const buttons = currentPrefixes.map((item) => {
+    const button = document.createElement('button');
+    button.className = 'directory-button';
+    button.type = 'button';
+    button.textContent = item.name;
+    button.title = item.prefix;
+    button.disabled = isLoading;
+    button.addEventListener('click', () => navigateToPrefix(item.prefix));
+    return button;
+  });
+
+  prefixList.replaceChildren(...buttons);
+}
+
+function updatePathButtons(): void {
+  rootButton.disabled = isLoading || currentPrefix === '';
+  parentButton.hidden = currentPrefix === '';
+  parentButton.disabled = isLoading || currentPrefix === '';
 }
 
 async function copyMarkdown(markdown: string): Promise<void> {
@@ -173,7 +269,7 @@ function createCard(item: ImageItem): HTMLElement {
 
   const formatBadge = document.createElement('span');
   formatBadge.className = 'format-badge';
-  formatBadge.textContent = item.name.split('.').pop()?.toUpperCase() ?? 'IMG';
+  formatBadge.textContent = item.extension ? item.extension.toUpperCase() : 'IMG';
 
   previewButton.append(image, formatBadge);
 
@@ -191,7 +287,11 @@ function createCard(item: ImageItem): HTMLElement {
 
   const meta = document.createElement('dl');
   meta.className = 'meta';
-  meta.append(createMetaRow('大小', formatBytes(item.size)), createMetaRow('时间', formatDate(item.uploaded)));
+  meta.append(
+    createMetaRow('大小', getSizeText(item)),
+    createMetaRow('创建时间', getUploadedText(item)),
+    createMetaRow('文件类型', item.contentType || '未知类型')
+  );
 
   const actions = document.createElement('div');
   actions.className = 'actions';
@@ -199,13 +299,13 @@ function createCard(item: ImageItem): HTMLElement {
   const downloadLink = document.createElement('a');
   downloadLink.className = 'secondary-button';
   downloadLink.href = item.downloadUrl;
-  downloadLink.textContent = '下载';
+  downloadLink.textContent = '下载原图';
   downloadLink.title = '下载 R2 原图';
 
   const copyButton = document.createElement('button');
   copyButton.className = 'secondary-button';
   copyButton.type = 'button';
-  copyButton.textContent = '复制';
+  copyButton.textContent = '复制 Markdown';
   copyButton.title = '复制 Markdown 图片链接';
   copyButton.addEventListener('click', () => void copyMarkdown(item.markdown));
 
@@ -216,7 +316,7 @@ function createCard(item: ImageItem): HTMLElement {
   return card;
 }
 
-function createEmptyState(message: string): HTMLElement {
+function createEmptyState(message: string, descriptionText?: string): HTMLElement {
   const empty = document.createElement('div');
   empty.className = 'empty-state';
 
@@ -224,7 +324,7 @@ function createEmptyState(message: string): HTMLElement {
   title.textContent = message;
 
   const description = document.createElement('span');
-  description.textContent = '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
+  description.textContent = descriptionText ?? '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
 
   empty.append(title, description);
   return empty;
@@ -242,11 +342,14 @@ function createSkeletonCards(count = 8): HTMLElement[] {
 function render(): void {
   const items = getFilteredItems();
   updateStats();
+  renderDirectoryButtons();
+  updatePathButtons();
 
-  loadMoreButton.hidden = !nextCursor && !isLoading;
+  loadMoreButton.hidden = !nextCursor;
   loadMoreButton.disabled = isLoading;
   loadMoreButton.textContent = isLoading ? '加载中...' : '加载更多';
   refreshButton.disabled = isLoading;
+  sortSelect.disabled = isLoading;
 
   if (isLoading && loadedItems.length === 0) {
     grid.replaceChildren(...createSkeletonCards());
@@ -255,14 +358,24 @@ function render(): void {
   }
 
   if (loadedItems.length === 0) {
-    grid.replaceChildren(createEmptyState('当前目录还没有图片'));
-    showNotice('当前 prefix 下没有可显示的图片。', 'info', false);
+    const description =
+      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以进入上方子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
+    grid.replaceChildren(createEmptyState('当前目录还没有图片', description));
+
+    if (!notice.dataset.type || notice.dataset.type === 'info') {
+      showNotice('当前 prefix 下没有可显示的图片。', 'info', false);
+    }
+
     return;
   }
 
   if (items.length === 0) {
     grid.replaceChildren(createEmptyState('没有匹配搜索条件的图片'));
-    showNotice('没有匹配搜索条件的图片。', 'info', false);
+
+    if (!notice.dataset.type || notice.dataset.type === 'info') {
+      showNotice('没有匹配搜索条件的图片。', 'info', false);
+    }
+
     return;
   }
 
@@ -279,10 +392,12 @@ async function loadImages(reset = false): Promise<void> {
   }
 
   currentAbortController?.abort();
-  currentAbortController = new AbortController();
+  const abortController = new AbortController();
+  currentAbortController = abortController;
 
   if (reset) {
     loadedItems = [];
+    currentPrefixes = [];
     nextCursor = null;
   }
 
@@ -290,15 +405,22 @@ async function loadImages(reset = false): Promise<void> {
   render();
 
   const params = new URLSearchParams();
-  params.set('prefix', prefixSelect.value);
+  const { sortBy, sortOrder } = getSortState();
+
+  params.set('prefix', currentPrefix);
+  params.set('sortBy', sortBy);
+  params.set('sortOrder', sortOrder);
 
   if (!reset && nextCursor) {
     params.set('cursor', nextCursor);
   }
 
+  let loadError: string | null = null;
+  let limitMessage: string | null = null;
+
   try {
     const response = await fetch(`/api/list?${params.toString()}`, {
-      signal: currentAbortController.signal
+      signal: abortController.signal
     });
     const data = (await response.json()) as ListResponse;
 
@@ -306,20 +428,39 @@ async function loadImages(reset = false): Promise<void> {
       throw new Error(data.error ?? `请求失败：${response.status}`);
     }
 
+    currentPrefix = normalizePrefix(data.prefix);
+    parentPrefix = data.parentPrefix;
+    currentPrefixes = data.prefixes;
     loadedItems = reset ? data.items : [...loadedItems, ...data.items];
-    nextCursor = data.cursor;
+    nextCursor = data.cursor ?? null;
+    limitMessage = data.limitMessage;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return;
     }
 
-    const message = error instanceof Error ? error.message : '未知错误';
-    showNotice(`加载失败：${message}`, 'error', false);
+    loadError = error instanceof Error ? error.message : '未知错误';
   } finally {
+    if (currentAbortController !== abortController) {
+      return;
+    }
+
     isLoading = false;
     currentAbortController = null;
     render();
+
+    if (loadError) {
+      showNotice(`加载失败：${loadError}`, 'error', false);
+    } else if (limitMessage) {
+      showNotice(limitMessage, 'info', false);
+    }
   }
+}
+
+function navigateToPrefix(prefix: string): void {
+  currentPrefix = normalizePrefix(prefix);
+  searchInput.value = '';
+  void loadImages(true);
 }
 
 function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160): T {
@@ -331,11 +472,16 @@ function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160
   }) as T;
 }
 
-prefixSelect.addEventListener('change', () => {
-  searchInput.value = '';
-  void loadImages(true);
+rootButton.addEventListener('click', () => navigateToPrefix(''));
+parentButton.addEventListener('click', () => {
+  if (currentPrefix === '') {
+    return;
+  }
+
+  navigateToPrefix(parentPrefix ?? '');
 });
 
+sortSelect.addEventListener('change', () => void loadImages(true));
 searchInput.addEventListener('input', debounce(render));
 refreshButton.addEventListener('click', () => void loadImages(true));
 loadMoreButton.addEventListener('click', () => void loadImages(false));

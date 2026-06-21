@@ -1,6 +1,7 @@
 export interface R2Object {
   key: string;
   size: number;
+  etag?: string;
   uploaded?: Date;
   httpEtag: string;
   httpMetadata?: {
@@ -16,10 +17,18 @@ export interface R2Objects {
   objects: R2Object[];
   truncated: boolean;
   cursor?: string;
+  delimitedPrefixes?: string[];
+}
+
+export interface R2ListOptions {
+  prefix?: string;
+  cursor?: string;
+  limit?: number;
+  delimiter?: string;
 }
 
 export interface R2Bucket {
-  list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<R2Objects>;
+  list(options?: R2ListOptions): Promise<R2Objects>;
   get(key: string): Promise<R2ObjectBody | null>;
 }
 
