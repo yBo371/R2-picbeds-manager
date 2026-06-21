@@ -52,13 +52,10 @@ function getElement<T extends Element>(selector: string): T {
 }
 
 const searchInput = getElement<HTMLInputElement>('#searchInput');
+const prefixSelect = getElement<HTMLSelectElement>('#prefixSelect');
 const sortBySelect = getElement<HTMLSelectElement>('#sortBySelect');
 const sortOrderSelect = getElement<HTMLSelectElement>('#sortOrderSelect');
 const refreshButton = getElement<HTMLButtonElement>('#refreshButton');
-const rootButton = getElement<HTMLButtonElement>('#rootButton');
-const parentButton = getElement<HTMLButtonElement>('#parentButton');
-const prefixList = getElement<HTMLDivElement>('#prefixList');
-const currentPath = getElement<HTMLElement>('#currentPath');
 const loadMoreButton = getElement<HTMLButtonElement>('#loadMoreButton');
 const grid = getElement<HTMLDivElement>('#grid');
 const notice = getElement<HTMLDivElement>('#notice');
@@ -70,6 +67,8 @@ const itemCount = getElement<HTMLElement>('#itemCount');
 const totalSize = getElement<HTMLElement>('#totalSize');
 const prefixBadge = getElement<HTMLElement>('#prefixBadge');
 
+const DEFAULT_VISIBLE_ITEM_LIMIT = 15;
+
 let loadedItems: ImageItem[] = [];
 let currentPrefixes: PrefixItem[] = [];
 let currentPrefix = '';
@@ -78,6 +77,7 @@ let nextCursor: string | null = null;
 let isLoading = false;
 let currentAbortController: AbortController | null = null;
 let noticeTimer: number | undefined;
+let visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
 
 function normalizePrefix(prefix: string): string {
   const cleanPrefix = prefix.trim().replace(/^\/+/, '');
@@ -169,6 +169,10 @@ function getFilteredItems(): ImageItem[] {
   return loadedItems.filter((item) => item.name.toLowerCase().includes(keyword) || item.key.toLowerCase().includes(keyword));
 }
 
+function getVisibleItems(): ImageItem[] {
+  return getFilteredItems().slice(0, visibleItemLimit);
+}
+
 function getSizeText(item: ImageItem): string {
   return item.sizeText || formatBytes(item.size);
 }
@@ -182,39 +186,38 @@ function updateStats(): void {
   const visibleSize = visibleItems.reduce((sum, item) => sum + (Number.isFinite(item.size) ? item.size : 0), 0);
   const prefixLabel = getCurrentPrefixLabel();
 
-  itemCount.textContent = `${visibleItems.length}`;
+  itemCount.textContent = visibleItems.length > visibleItemLimit ? `${Math.min(visibleItemLimit, visibleItems.length)} / ${visibleItems.length}` : `${visibleItems.length}`;
   totalSize.textContent = formatBytes(visibleSize);
   prefixBadge.textContent = prefixLabel;
-  currentPath.textContent = prefixLabel;
 }
 
-function renderDirectoryButtons(): void {
-  if (currentPrefixes.length === 0) {
-    const empty = document.createElement('span');
-    empty.className = 'prefix-empty';
-    empty.textContent = '无子目录';
-    prefixList.replaceChildren(empty);
-    return;
+function appendPrefixOption(fragment: DocumentFragment, value: string, label: string): void {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  fragment.append(option);
+}
+
+function renderPrefixOptions(): void {
+  const fragment = document.createDocumentFragment();
+
+  appendPrefixOption(fragment, '', '根目录');
+
+  if (parentPrefix !== null && parentPrefix !== '' && currentPrefix !== '') {
+    appendPrefixOption(fragment, parentPrefix, `上一级：${parentPrefix || '根目录'}`);
   }
 
-  const buttons = currentPrefixes.map((item) => {
-    const button = document.createElement('button');
-    button.className = 'directory-button';
-    button.type = 'button';
-    button.textContent = item.name;
-    button.title = item.prefix;
-    button.disabled = isLoading;
-    button.addEventListener('click', () => navigateToPrefix(item.prefix));
-    return button;
-  });
+  if (currentPrefix !== '') {
+    appendPrefixOption(fragment, currentPrefix, `当前目录：${currentPrefix}`);
+  }
 
-  prefixList.replaceChildren(...buttons);
-}
+  for (const item of currentPrefixes) {
+    appendPrefixOption(fragment, item.prefix, item.prefix);
+  }
 
-function updatePathButtons(): void {
-  rootButton.disabled = isLoading || currentPrefix === '';
-  parentButton.hidden = currentPrefix === '';
-  parentButton.disabled = isLoading || currentPrefix === '';
+  prefixSelect.replaceChildren(fragment);
+  prefixSelect.value = currentPrefix;
+  prefixSelect.disabled = isLoading;
 }
 
 async function copyMarkdown(markdown: string): Promise<void> {
@@ -329,7 +332,7 @@ function createEmptyState(message: string, descriptionText?: string): HTMLElemen
   return empty;
 }
 
-function createSkeletonCards(count = 8): HTMLElement[] {
+function createSkeletonCards(count = DEFAULT_VISIBLE_ITEM_LIMIT): HTMLElement[] {
   return Array.from({ length: count }, () => {
     const card = document.createElement('article');
     card.className = 'image-card skeleton-card';
@@ -339,12 +342,12 @@ function createSkeletonCards(count = 8): HTMLElement[] {
 }
 
 function render(): void {
-  const items = getFilteredItems();
+  const filteredItems = getFilteredItems();
+  const items = getVisibleItems();
   updateStats();
-  renderDirectoryButtons();
-  updatePathButtons();
+  renderPrefixOptions();
 
-  loadMoreButton.hidden = !nextCursor;
+  loadMoreButton.hidden = filteredItems.length <= visibleItemLimit && !nextCursor;
   loadMoreButton.disabled = isLoading;
   loadMoreButton.textContent = isLoading ? '加载中...' : '加载更多';
   refreshButton.disabled = isLoading;
@@ -359,7 +362,7 @@ function render(): void {
 
   if (loadedItems.length === 0) {
     const description =
-      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以进入上方子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
+      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以从目录下拉框进入子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
     grid.replaceChildren(createEmptyState('当前目录还没有图片', description));
 
     if (!notice.dataset.type || notice.dataset.type === 'info') {
@@ -399,6 +402,7 @@ async function loadImages(reset = false): Promise<void> {
     loadedItems = [];
     currentPrefixes = [];
     nextCursor = null;
+    visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
   }
 
   isLoading = true;
@@ -460,7 +464,20 @@ async function loadImages(reset = false): Promise<void> {
 function navigateToPrefix(prefix: string): void {
   currentPrefix = normalizePrefix(prefix);
   searchInput.value = '';
+  visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
   void loadImages(true);
+}
+
+function loadMoreItems(): void {
+  const filteredItems = getFilteredItems();
+
+  if (visibleItemLimit < filteredItems.length) {
+    visibleItemLimit += DEFAULT_VISIBLE_ITEM_LIMIT;
+    render();
+    return;
+  }
+
+  void loadImages(false);
 }
 
 function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160): T {
@@ -472,20 +489,18 @@ function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160
   }) as T;
 }
 
-rootButton.addEventListener('click', () => navigateToPrefix(''));
-parentButton.addEventListener('click', () => {
-  if (currentPrefix === '') {
-    return;
-  }
-
-  navigateToPrefix(parentPrefix ?? '');
-});
-
+prefixSelect.addEventListener('change', () => navigateToPrefix(prefixSelect.value));
 sortBySelect.addEventListener('change', () => void loadImages(true));
 sortOrderSelect.addEventListener('change', () => void loadImages(true));
-searchInput.addEventListener('input', debounce(render));
+searchInput.addEventListener(
+  'input',
+  debounce(() => {
+    visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
+    render();
+  })
+);
 refreshButton.addEventListener('click', () => void loadImages(true));
-loadMoreButton.addEventListener('click', () => void loadImages(false));
+loadMoreButton.addEventListener('click', loadMoreItems);
 
 closePreviewButton.addEventListener('click', () => {
   previewDialog.close();

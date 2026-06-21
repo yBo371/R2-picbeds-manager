@@ -35,44 +35,32 @@
         </section>
 
         <section class="toolbar" aria-label="筛选工具">
-          <div class="path-row">
-            <div class="current-path">
-              <span>当前路径</span>
-              <strong id="currentPath">根目录</strong>
-            </div>
-            <div class="path-actions">
-              <button id="rootButton" class="secondary-button" type="button">根目录</button>
-              <button id="parentButton" class="secondary-button" type="button">返回上一级</button>
-            </div>
-          </div>
-
-          <div class="directory-row">
-            <span>子目录</span>
-            <div id="prefixList" class="prefix-list" aria-label="子目录列表"></div>
-          </div>
-
           <div class="filter-row">
+            <label class="field">
+              <span>目录</span>
+              <select id="prefixSelect">
+                <option value="">根目录</option>
+              </select>
+            </label>
             <label class="field grow">
               <span>搜索已加载文件</span>
               <input id="searchInput" type="search" placeholder="输入文件名" autocomplete="off" />
             </label>
-            <div class="sort-fields">
-              <label class="field">
-                <span>排序字段</span>
-                <select id="sortBySelect">
-                  <option value="name">名称</option>
-                  <option value="size">文件大小</option>
-                  <option value="uploaded" selected>创建时间</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>排序方式</span>
-                <select id="sortOrderSelect">
-                  <option value="asc">递增</option>
-                  <option value="desc" selected>递减</option>
-                </select>
-              </label>
-            </div>
+            <label class="field">
+              <span>排序字段</span>
+              <select id="sortBySelect">
+                <option value="name">名称</option>
+                <option value="size">文件大小</option>
+                <option value="uploaded" selected>创建时间</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>排序方式</span>
+              <select id="sortOrderSelect">
+                <option value="asc">递增</option>
+                <option value="desc" selected>递减</option>
+              </select>
+            </label>
           </div>
         </section>
 
