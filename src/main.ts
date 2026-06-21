@@ -302,7 +302,7 @@ function createCard(item: ImageItem): HTMLElement {
   const meta = document.createElement('dl');
   meta.className = 'meta';
   meta.append(
-    createMetaRow('大小', getSizeText(item)),
+    createMetaRow('文件大小', getSizeText(item)),
     createMetaRow('创建时间', getUploadedText(item))
   );
 
