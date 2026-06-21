@@ -1,0 +1,19 @@
+{
+  "name": "cloudflare-r2-image-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit",
+    "build": "tsc && vite build",
+    "preview": "npm run build && wrangler pages dev dist --compatibility-date=2026-06-21",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260620.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "wrangler": "^4.20.0"
+  }
+}

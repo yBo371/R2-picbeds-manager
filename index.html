@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R2 图片管理器</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">R2</span>
+          <div>
+            <h1>R2 图片管理器</h1>
+            <p>轻量浏览、预览、下载和管理 PicGo 上传的图片</p>
+          </div>
+        </div>
+        <button id="refreshButton" class="icon-button" type="button" title="刷新列表" aria-label="刷新列表">↻</button>
+      </header>
+
+      <main>
+        <section class="stats" aria-label="当前列表统计">
+          <div class="stat">
+            <span>已加载</span>
+            <strong id="itemCount">0</strong>
+          </div>
+          <div class="stat">
+            <span>总大小</span>
+            <strong id="totalSize">0 B</strong>
+          </div>
+          <div class="stat stat-wide">
+            <span>当前位置</span>
+            <strong id="prefixBadge">根目录</strong>
+          </div>
+        </section>
+
+        <section class="toolbar" aria-label="筛选工具">
+          <label class="field">
+            <span>目录</span>
+            <select id="prefixSelect">
+              <option value="">根目录</option>
+              <option value="images/">images/</option>
+              <option value="posts/">posts/</option>
+              <option value="wallpapers/">wallpapers/</option>
+            </select>
+          </label>
+          <label class="field grow">
+            <span>搜索已加载文件</span>
+            <input id="searchInput" type="search" placeholder="输入文件名" autocomplete="off" />
+          </label>
+        </section>
+
+        <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+        <div id="grid" class="image-grid" aria-live="polite"></div>
+
+        <div class="load-more-wrap">
+          <button id="loadMoreButton" class="primary-button" type="button" hidden>加载更多</button>
+        </div>
+      </main>
+
+      <dialog id="previewDialog" class="preview-dialog">
+        <div class="preview-header">
+          <strong id="previewTitle"></strong>
+          <button id="closePreviewButton" class="icon-button" type="button" title="关闭预览" aria-label="关闭预览">
+            ×
+          </button>
+        </div>
+        <img id="previewImage" alt="" />
+      </dialog>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

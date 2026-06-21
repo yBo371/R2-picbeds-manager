@@ -1,0 +1,13 @@
+name = "r2-image-browser"
+compatibility_date = "2026-06-21"
+pages_build_output_dir = "dist"
+
+# 本地开发和 Pages Functions 都通过 R2 binding 读取图片。
+# 请把 bucket_name 替换为你的 R2 bucket 名称。
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "picbeds"
+
+[vars]
+# 可选。用于生成 Markdown 链接；不配置时会自动使用当前访问域名。
+PUBLIC_BASE_URL = "https://img.example.com"
