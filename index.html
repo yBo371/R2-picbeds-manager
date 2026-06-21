@@ -36,13 +36,13 @@
 
         <section class="toolbar" aria-label="筛选工具">
           <div class="filter-row">
-            <label class="field">
-              <span>目录</span>
-              <select id="prefixSelect">
-                <option value="">根目录</option>
-                <option value="__all__">全部文件</option>
-              </select>
-            </label>
+            <div class="nav-controls" aria-label="目录导航">
+              <button id="allFilesButton" class="secondary-button nav-text-button" type="button" title="显示所有文件">
+                全部文件
+              </button>
+              <button id="backButton" class="icon-button" type="button" title="后退" aria-label="后退">←</button>
+              <button id="forwardButton" class="icon-button" type="button" title="前进" aria-label="前进">→</button>
+            </div>
             <label class="field grow">
               <span>搜索已加载文件</span>
               <input id="searchInput" type="search" placeholder="输入文件名" autocomplete="off" />

@@ -25,7 +25,6 @@ interface ImageItem {
 interface ListResponse {
   all?: boolean;
   prefix: string;
-  parentPrefix: string | null;
   prefixes: PrefixItem[];
   items: ImageItem[];
   sortBy: SortBy;
@@ -38,6 +37,11 @@ interface ListResponse {
   cursor?: string | null;
   truncated?: boolean;
   error?: string;
+}
+
+interface NavigationLocation {
+  prefix: string;
+  allFiles: boolean;
 }
 
 type NoticeType = 'info' | 'error' | 'success';
@@ -53,7 +57,9 @@ function getElement<T extends Element>(selector: string): T {
 }
 
 const searchInput = getElement<HTMLInputElement>('#searchInput');
-const prefixSelect = getElement<HTMLSelectElement>('#prefixSelect');
+const allFilesButton = getElement<HTMLButtonElement>('#allFilesButton');
+const backButton = getElement<HTMLButtonElement>('#backButton');
+const forwardButton = getElement<HTMLButtonElement>('#forwardButton');
 const sortBySelect = getElement<HTMLSelectElement>('#sortBySelect');
 const sortOrderSelect = getElement<HTMLSelectElement>('#sortOrderSelect');
 const refreshButton = getElement<HTMLButtonElement>('#refreshButton');
@@ -69,18 +75,18 @@ const totalSize = getElement<HTMLElement>('#totalSize');
 const prefixBadge = getElement<HTMLElement>('#prefixBadge');
 
 const DEFAULT_VISIBLE_ITEM_LIMIT = 15;
-const ALL_FILES_OPTION_VALUE = '__all__';
 
 let loadedItems: ImageItem[] = [];
 let currentPrefixes: PrefixItem[] = [];
 let currentPrefix = '';
 let isAllFilesView = false;
-let parentPrefix: string | null = null;
 let nextCursor: string | null = null;
 let isLoading = false;
 let currentAbortController: AbortController | null = null;
 let noticeTimer: number | undefined;
 let visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
+let backStack: NavigationLocation[] = [];
+let forwardStack: NavigationLocation[] = [];
 
 function normalizePrefix(prefix: string): string {
   const cleanPrefix = prefix.trim().replace(/^\/+/, '');
@@ -157,6 +163,26 @@ function getCurrentPrefixLabel(): string {
   return currentPrefix || '根目录';
 }
 
+function createLocation(prefix: string, allFiles = false): NavigationLocation {
+  return {
+    prefix: allFiles ? '' : normalizePrefix(prefix),
+    allFiles
+  };
+}
+
+function getCurrentLocation(): NavigationLocation {
+  return createLocation(currentPrefix, isAllFilesView);
+}
+
+function isSameLocation(left: NavigationLocation, right: NavigationLocation): boolean {
+  return left.allFiles === right.allFiles && left.prefix === right.prefix;
+}
+
+function setCurrentLocation(location: NavigationLocation): void {
+  isAllFilesView = location.allFiles;
+  currentPrefix = location.allFiles ? '' : normalizePrefix(location.prefix);
+}
+
 function getSortState(): { sortBy: SortBy; sortOrder: SortOrder } {
   const sortByValue = sortBySelect.value;
   const sortOrderValue = sortOrderSelect.value;
@@ -204,36 +230,6 @@ function updateStats(): void {
   itemCount.textContent = visibleItems.length > visibleItemLimit ? `${Math.min(visibleItemLimit, visibleItems.length)} / ${visibleItems.length}` : `${visibleItems.length}`;
   totalSize.textContent = formatBytes(visibleSize);
   prefixBadge.textContent = prefixLabel;
-}
-
-function appendPrefixOption(fragment: DocumentFragment, value: string, label: string): void {
-  const option = document.createElement('option');
-  option.value = value;
-  option.textContent = label;
-  fragment.append(option);
-}
-
-function renderPrefixOptions(): void {
-  const fragment = document.createDocumentFragment();
-
-  appendPrefixOption(fragment, '', '根目录');
-  appendPrefixOption(fragment, ALL_FILES_OPTION_VALUE, '全部文件');
-
-  if (!isAllFilesView && parentPrefix !== null && parentPrefix !== '' && currentPrefix !== '') {
-    appendPrefixOption(fragment, parentPrefix, `上一级：${parentPrefix || '根目录'}`);
-  }
-
-  if (!isAllFilesView && currentPrefix !== '') {
-    appendPrefixOption(fragment, currentPrefix, `当前目录：${currentPrefix}`);
-  }
-
-  for (const item of currentPrefixes) {
-    appendPrefixOption(fragment, item.prefix, item.prefix);
-  }
-
-  prefixSelect.replaceChildren(fragment);
-  prefixSelect.value = isAllFilesView ? ALL_FILES_OPTION_VALUE : currentPrefix;
-  prefixSelect.disabled = isLoading;
 }
 
 async function copyMarkdown(markdown: string): Promise<void> {
@@ -393,12 +389,14 @@ function render(): void {
   const items = getVisibleItems();
   const folderCards = getVisiblePrefixes().map(createFolderCard);
   updateStats();
-  renderPrefixOptions();
 
   loadMoreButton.hidden = filteredItems.length <= visibleItemLimit && !nextCursor;
   loadMoreButton.disabled = isLoading;
   loadMoreButton.textContent = isLoading ? '加载中...' : '加载更多';
   refreshButton.disabled = isLoading;
+  allFilesButton.disabled = isLoading || isAllFilesView;
+  backButton.disabled = isLoading || backStack.length === 0;
+  forwardButton.disabled = isLoading || forwardStack.length === 0;
   sortBySelect.disabled = isLoading;
   sortOrderSelect.disabled = isLoading;
 
@@ -410,7 +408,7 @@ function render(): void {
 
   if (loadedItems.length === 0 && folderCards.length === 0) {
     const description =
-      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以从目录下拉框或文件夹卡片进入子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
+      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以点击文件夹卡片进入子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
     grid.replaceChildren(createEmptyState('当前目录还没有图片', description));
 
     if (!notice.dataset.type || notice.dataset.type === 'info') {
@@ -486,7 +484,6 @@ async function loadImages(reset = false): Promise<void> {
 
     isAllFilesView = data.all === true;
     currentPrefix = normalizePrefix(data.prefix);
-    parentPrefix = data.parentPrefix;
     currentPrefixes = data.prefixes;
     loadedItems = reset ? data.items : [...loadedItems, ...data.items];
     nextCursor = data.cursor ?? null;
@@ -514,12 +511,54 @@ async function loadImages(reset = false): Promise<void> {
   }
 }
 
-function navigateToPrefix(prefix: string, allFiles = false): void {
-  isAllFilesView = allFiles;
-  currentPrefix = allFiles ? '' : normalizePrefix(prefix);
+function loadCurrentLocation(): void {
   searchInput.value = '';
   visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
   void loadImages(true);
+}
+
+function navigateToLocation(location: NavigationLocation): void {
+  const nextLocation = createLocation(location.prefix, location.allFiles);
+  const currentLocation = getCurrentLocation();
+
+  if (isSameLocation(currentLocation, nextLocation)) {
+    return;
+  }
+
+  backStack = [...backStack, currentLocation];
+  forwardStack = [];
+  setCurrentLocation(nextLocation);
+  loadCurrentLocation();
+}
+
+function navigateToPrefix(prefix: string, allFiles = false): void {
+  navigateToLocation(createLocation(prefix, allFiles));
+}
+
+function navigateBack(): void {
+  const previousLocation = backStack.at(-1);
+
+  if (!previousLocation) {
+    return;
+  }
+
+  backStack = backStack.slice(0, -1);
+  forwardStack = [...forwardStack, getCurrentLocation()];
+  setCurrentLocation(previousLocation);
+  loadCurrentLocation();
+}
+
+function navigateForward(): void {
+  const nextLocation = forwardStack.at(-1);
+
+  if (!nextLocation) {
+    return;
+  }
+
+  forwardStack = forwardStack.slice(0, -1);
+  backStack = [...backStack, getCurrentLocation()];
+  setCurrentLocation(nextLocation);
+  loadCurrentLocation();
 }
 
 function loadMoreItems(): void {
@@ -543,14 +582,9 @@ function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160
   }) as T;
 }
 
-prefixSelect.addEventListener('change', () => {
-  if (prefixSelect.value === ALL_FILES_OPTION_VALUE) {
-    navigateToPrefix('', true);
-    return;
-  }
-
-  navigateToPrefix(prefixSelect.value);
-});
+allFilesButton.addEventListener('click', () => navigateToPrefix('', true));
+backButton.addEventListener('click', navigateBack);
+forwardButton.addEventListener('click', navigateForward);
 sortBySelect.addEventListener('change', () => void loadImages(true));
 sortOrderSelect.addEventListener('change', () => void loadImages(true));
 searchInput.addEventListener(

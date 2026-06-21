@@ -132,9 +132,15 @@ button:disabled {
 
 .filter-row {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(260px, 1fr) minmax(150px, 190px) minmax(120px, 150px);
+  grid-template-columns: auto minmax(260px, 1fr) minmax(150px, 190px) minmax(120px, 150px);
   gap: 12px;
   align-items: end;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .field {
@@ -446,6 +452,15 @@ button:disabled {
   color: #1d4ed8;
 }
 
+.nav-controls .secondary-button,
+.nav-controls .icon-button {
+  min-height: 42px;
+}
+
+.nav-text-button {
+  min-width: 92px;
+}
+
 .load-more-wrap {
   display: flex;
   justify-content: center;
@@ -573,6 +588,14 @@ button:disabled {
   .stats,
   .filter-row {
     grid-template-columns: 1fr;
+  }
+
+  .nav-controls {
+    width: 100%;
+  }
+
+  .nav-controls .nav-text-button {
+    flex: 1 1 auto;
   }
 
   .image-grid {
