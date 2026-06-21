@@ -131,6 +131,16 @@ function createPrefixItem(currentPrefix: string, folderPrefix: string): PrefixIt
   };
 }
 
+function getRootFolderPrefix(key: string): string | null {
+  const slashIndex = key.indexOf('/');
+
+  if (slashIndex === -1) {
+    return null;
+  }
+
+  return `${key.slice(0, slashIndex)}/`;
+}
+
 function createListItem(object: R2Object, baseUrl: string): ListItem {
   const encodedKey = encodeKeyPath(object.key);
   const imageUrl = `/image/${encodedKey}`;
@@ -213,7 +223,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const url = new URL(request.url);
-  const prefix = normalizePrefix(url.searchParams.get('prefix'));
+  const allFiles = url.searchParams.get('all') === 'true';
+  const prefix = allFiles ? '' : normalizePrefix(url.searchParams.get('prefix'));
   const initialCursor = url.searchParams.get('cursor') ?? undefined;
   const sortBy = parseSortBy(url.searchParams.get('sortBy'));
   const sortOrder = parseSortOrder(url.searchParams.get('sortOrder'));
@@ -228,7 +239,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const result = await env.BUCKET.list({
         prefix,
         cursor,
-        delimiter: '/',
+        ...(allFiles ? {} : { delimiter: '/' }),
         limit: R2_LIST_LIMIT
       });
 
@@ -243,6 +254,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       for (const object of result.objects) {
         if (!isImageKey(object.key)) {
           continue;
+        }
+
+        if (allFiles) {
+          const rootFolderPrefix = getRootFolderPrefix(object.key);
+          const item = rootFolderPrefix ? createPrefixItem('', rootFolderPrefix) : null;
+
+          if (item) {
+            prefixes.set(item.prefix, item);
+          }
         }
 
         if (objects.length >= MAX_SORT_OBJECTS) {
@@ -270,6 +290,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const limitMessage = limited ? `当前目录图片太多，只排序了前 ${MAX_SORT_OBJECTS} 个对象` : null;
 
     return jsonResponse({
+      all: allFiles,
       prefix,
       parentPrefix: getParentPrefix(prefix),
       prefixes: prefixItems,

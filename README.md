@@ -30,6 +30,8 @@
 - 首页网格展示 R2 图片列表
 - 支持 `jpg`、`jpeg`、`png`、`webp`、`gif`、`avif`、`svg`
 - 支持按 prefix 浏览，并自动检测当前目录下的子目录
+- 目录下拉支持“全部文件”，可递归查看 bucket 内所有图片
+- 图片网格会显示文件夹卡片，点击后进入对应目录
 - 支持按名称、文件大小、创建时间排序，可选择递增或递减，默认按 R2 上传时间递减
 - 支持搜索当前已加载列表里的文件名或 key
 - 前端默认显示 15 张图片，点击“加载更多”继续显示更多已加载图片
@@ -40,7 +42,7 @@
 - 复制 Markdown 格式：`![](https://你的域名/文件路径)`
 - 图片预览地址：`/image/<key>`
 - 列表接口：`/api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc`
-- 图片卡片显示文件名、文件大小、创建时间和文件类型
+- 图片卡片显示文件名、文件大小和创建时间
 
 ## 安装与本地运行
 
@@ -98,9 +100,9 @@ PUBLIC_BASE_URL=https://img.example.com
 
 ## API 说明
 
-### `GET /api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc`
+### `GET /api/list?prefix=xxx&cursor=xxx&sortBy=uploaded&sortOrder=desc&all=true`
 
-返回当前 prefix 下一级子目录和图片对象列表。R2 没有真实文件夹，接口使用 `prefix` + `delimiter: "/"` 根据对象 key 自动分组目录。
+返回当前 prefix 下一级子目录和图片对象列表。R2 没有真实文件夹，接口默认使用 `prefix` + `delimiter: "/"` 根据对象 key 自动分组目录。传入 `all=true` 时会递归读取所有图片，不限制在当前层级。
 
 支持的排序字段：
 

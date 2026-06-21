@@ -23,6 +23,7 @@ interface ImageItem {
 }
 
 interface ListResponse {
+  all?: boolean;
   prefix: string;
   parentPrefix: string | null;
   prefixes: PrefixItem[];
@@ -68,10 +69,12 @@ const totalSize = getElement<HTMLElement>('#totalSize');
 const prefixBadge = getElement<HTMLElement>('#prefixBadge');
 
 const DEFAULT_VISIBLE_ITEM_LIMIT = 15;
+const ALL_FILES_OPTION_VALUE = '__all__';
 
 let loadedItems: ImageItem[] = [];
 let currentPrefixes: PrefixItem[] = [];
 let currentPrefix = '';
+let isAllFilesView = false;
 let parentPrefix: string | null = null;
 let nextCursor: string | null = null;
 let isLoading = false;
@@ -147,6 +150,10 @@ function hideNotice(): void {
 }
 
 function getCurrentPrefixLabel(): string {
+  if (isAllFilesView) {
+    return '全部文件';
+  }
+
   return currentPrefix || '根目录';
 }
 
@@ -171,6 +178,14 @@ function getFilteredItems(): ImageItem[] {
 
 function getVisibleItems(): ImageItem[] {
   return getFilteredItems().slice(0, visibleItemLimit);
+}
+
+function getVisiblePrefixes(): PrefixItem[] {
+  if (searchInput.value.trim()) {
+    return [];
+  }
+
+  return currentPrefixes;
 }
 
 function getSizeText(item: ImageItem): string {
@@ -202,12 +217,13 @@ function renderPrefixOptions(): void {
   const fragment = document.createDocumentFragment();
 
   appendPrefixOption(fragment, '', '根目录');
+  appendPrefixOption(fragment, ALL_FILES_OPTION_VALUE, '全部文件');
 
-  if (parentPrefix !== null && parentPrefix !== '' && currentPrefix !== '') {
+  if (!isAllFilesView && parentPrefix !== null && parentPrefix !== '' && currentPrefix !== '') {
     appendPrefixOption(fragment, parentPrefix, `上一级：${parentPrefix || '根目录'}`);
   }
 
-  if (currentPrefix !== '') {
+  if (!isAllFilesView && currentPrefix !== '') {
     appendPrefixOption(fragment, currentPrefix, `当前目录：${currentPrefix}`);
   }
 
@@ -216,7 +232,7 @@ function renderPrefixOptions(): void {
   }
 
   prefixSelect.replaceChildren(fragment);
-  prefixSelect.value = currentPrefix;
+  prefixSelect.value = isAllFilesView ? ALL_FILES_OPTION_VALUE : currentPrefix;
   prefixSelect.disabled = isLoading;
 }
 
@@ -291,8 +307,7 @@ function createCard(item: ImageItem): HTMLElement {
   meta.className = 'meta';
   meta.append(
     createMetaRow('大小', getSizeText(item)),
-    createMetaRow('创建时间', getUploadedText(item)),
-    createMetaRow('文件类型', item.contentType || '未知类型')
+    createMetaRow('创建时间', getUploadedText(item))
   );
 
   const actions = document.createElement('div');
@@ -314,6 +329,38 @@ function createCard(item: ImageItem): HTMLElement {
   actions.append(downloadLink, copyButton);
   body.append(title, keyLine, meta, actions);
   card.append(previewButton, body);
+
+  return card;
+}
+
+function createFolderCard(item: PrefixItem): HTMLElement {
+  const card = document.createElement('button');
+  card.className = 'image-card folder-card';
+  card.type = 'button';
+  card.title = `进入 ${item.prefix}`;
+  card.addEventListener('click', () => navigateToPrefix(item.prefix));
+
+  const preview = document.createElement('div');
+  preview.className = 'folder-preview';
+
+  const mark = document.createElement('span');
+  mark.className = 'folder-mark';
+  mark.textContent = 'DIR';
+  preview.append(mark);
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const title = document.createElement('h2');
+  title.textContent = item.name;
+
+  const path = document.createElement('p');
+  path.className = 'key-line';
+  path.textContent = item.prefix;
+  path.title = item.prefix;
+
+  body.append(title, path);
+  card.append(preview, body);
 
   return card;
 }
@@ -344,6 +391,7 @@ function createSkeletonCards(count = DEFAULT_VISIBLE_ITEM_LIMIT): HTMLElement[] 
 function render(): void {
   const filteredItems = getFilteredItems();
   const items = getVisibleItems();
+  const folderCards = getVisiblePrefixes().map(createFolderCard);
   updateStats();
   renderPrefixOptions();
 
@@ -360,9 +408,9 @@ function render(): void {
     return;
   }
 
-  if (loadedItems.length === 0) {
+  if (loadedItems.length === 0 && folderCards.length === 0) {
     const description =
-      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以从目录下拉框进入子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
+      currentPrefixes.length > 0 ? '当前目录没有直接图片，可以从目录下拉框或文件夹卡片进入子目录查看。' : '可以切换目录、刷新列表，或确认 PicGo 是否已经上传图片。';
     grid.replaceChildren(createEmptyState('当前目录还没有图片', description));
 
     if (!notice.dataset.type || notice.dataset.type === 'info') {
@@ -372,7 +420,7 @@ function render(): void {
     return;
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && folderCards.length === 0) {
     grid.replaceChildren(createEmptyState('没有匹配搜索条件的图片'));
 
     if (!notice.dataset.type || notice.dataset.type === 'info') {
@@ -382,7 +430,7 @@ function render(): void {
     return;
   }
 
-  grid.replaceChildren(...items.map(createCard));
+  grid.replaceChildren(...folderCards, ...items.map(createCard));
 
   if (!notice.dataset.type || notice.dataset.type === 'info') {
     hideNotice();
@@ -415,6 +463,10 @@ async function loadImages(reset = false): Promise<void> {
   params.set('sortBy', sortBy);
   params.set('sortOrder', sortOrder);
 
+  if (isAllFilesView) {
+    params.set('all', 'true');
+  }
+
   if (!reset && nextCursor) {
     params.set('cursor', nextCursor);
   }
@@ -432,6 +484,7 @@ async function loadImages(reset = false): Promise<void> {
       throw new Error(data.error ?? `请求失败：${response.status}`);
     }
 
+    isAllFilesView = data.all === true;
     currentPrefix = normalizePrefix(data.prefix);
     parentPrefix = data.parentPrefix;
     currentPrefixes = data.prefixes;
@@ -461,8 +514,9 @@ async function loadImages(reset = false): Promise<void> {
   }
 }
 
-function navigateToPrefix(prefix: string): void {
-  currentPrefix = normalizePrefix(prefix);
+function navigateToPrefix(prefix: string, allFiles = false): void {
+  isAllFilesView = allFiles;
+  currentPrefix = allFiles ? '' : normalizePrefix(prefix);
   searchInput.value = '';
   visibleItemLimit = DEFAULT_VISIBLE_ITEM_LIMIT;
   void loadImages(true);
@@ -489,7 +543,14 @@ function debounce<T extends (...args: never[]) => void>(callback: T, delay = 160
   }) as T;
 }
 
-prefixSelect.addEventListener('change', () => navigateToPrefix(prefixSelect.value));
+prefixSelect.addEventListener('change', () => {
+  if (prefixSelect.value === ALL_FILES_OPTION_VALUE) {
+    navigateToPrefix('', true);
+    return;
+  }
+
+  navigateToPrefix(prefixSelect.value);
+});
 sortBySelect.addEventListener('change', () => void loadImages(true));
 sortOrderSelect.addEventListener('change', () => void loadImages(true));
 searchInput.addEventListener(
